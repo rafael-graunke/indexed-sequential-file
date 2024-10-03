@@ -1,13 +1,19 @@
 #include <stdlib.h>
 #include "database.h"
 
-void *read_bin_file(char *filename, size_t __size, int *count)
+int count_records(char *filename, size_t __size)
 {
     FILE *source = fopen(filename, "rb");
     fseek(source, 0, SEEK_END);
-    *count = ftell(source) / __size;
-    rewind(source);
+    int count = ftell(source) / __size;
+    fclose(source);
+    return count;
+}
 
+void *read_bin_file(char *filename, size_t __size, int *count)
+{
+    FILE *source = fopen(filename, "rb");
+    *count = count_records(filename, __size);
     void *records = malloc(__size * (*count));
     fread(records, __size, *count, source);
     fclose(source);
@@ -18,6 +24,23 @@ void *read_bin_file(char *filename, size_t __size, int *count)
 int compare_index(const void *index1, const void *index2)
 {
     return ((NumericIndex *)index1)->index - ((NumericIndex *)index2)->index;
+}
+
+NumericIndex *fetch_indexes(char *source, char *target, size_t __size, __getindex_fn_t get_index, int *index_count)
+{
+    FILE *index_file = fopen(target, "rb");
+    NumericIndex *indexes;
+    // If file doesn't exist
+    if (index_file == NULL) // Then generate new indexes
+    {
+        indexes = generate_index(source, target, __size, get_index);
+    }
+
+    // Else read from index file
+    else
+        indexes = (NumericIndex *)read_bin_file(target, sizeof(NumericIndex), index_count);
+
+    return indexes;
 }
 
 NumericIndex *generate_index(char *input, char *output, size_t __size, __getindex_fn_t __index)
@@ -33,6 +56,8 @@ NumericIndex *generate_index(char *input, char *output, size_t __size, __getinde
     }
 
     qsort(indexes, count, sizeof(NumericIndex), compare_index);
+    FILE *out = fopen(output, "wb");
+    fwrite(indexes, sizeof(NumericIndex), count, out);
 
     return indexes;
 }
@@ -64,4 +89,46 @@ long binsearch_in_file(FILE *source, size_t __size, int start, int end, void *ma
     }
 
     return -1;
+}
+
+NumericIndex binsearch_index(NumericIndex *indexes, int start, int end, int id, int *pos, bool *found)
+{
+    int middle;
+    *found = false;
+    NumericIndex curr;
+    if (start <= end)
+    {
+        middle = (end + start) / 2;
+        *pos = middle;
+        curr = indexes[middle];
+        int cmp = id - curr.index;
+        if (cmp == 0)
+        {
+            *found = true;
+            return curr;
+        }
+
+        else if (cmp < 0)
+            return binsearch_index(indexes, start, middle - 1, id, pos, found);
+        else
+            return binsearch_index(indexes, middle + 1, end, id, pos, found);
+    }
+
+    return curr;
+}
+
+long append_to_file(char *filename, void *value, size_t __size)
+{
+    FILE *file = fopen(filename, "ab");
+    fwrite(value, __size, 1, file);
+    fseek(file, 0, SEEK_END);
+    long address = ftell(file) - __size;
+    fclose(file);
+
+    return address;
+}
+
+long append_to_extension(NumericIndex index)
+{
+    return append_to_file("input/extension.bin", &index, sizeof(NumericIndex));
 }

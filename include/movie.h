@@ -13,4 +13,7 @@ typedef struct s_movie {
     char url[BUFF_SZ];
 } Movie;
 
+int get_index(const void *movie);
+Movie create_movie(void);
+
 #endif
