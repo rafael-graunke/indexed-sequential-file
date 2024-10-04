@@ -19,39 +19,29 @@ long indexed_binary_search(void)
     bool found;
     int pos;
     NumericIndex index = binsearch_index(indexes, 0, index_count, id, &pos, &found);
-    long address = index.address;
-
+    long address;
+    printf("%d\n", pos);
     // If not found at base file
     if (!found)
     {
-        printf("Not found.\n");
-        return -1;
-        // FILE *extension = fopen("input/extension.bin", "rb");
-        // if (extension == NULL)
-        // {
-        //     printf("Movie with ID %d not found!\n", id);
-        //     return -1;
-        // }
+        long extension_address = indexes[pos].next;
+        if (extension_address == -1)
+        {
+            printf("Movie with ID %d not found!\n", id);
+            return -1;
+        }
 
-        // // Then search extension
-        // long next_address;
-        // index = indexes[pos];
-        // while ((next_address = index.next) != -1)
-        // {
-        //     printf("%ld\n", next_address);
-        //     fseek(extension, next_address, SEEK_SET);
-        //     fread(&index, sizeof(NumericIndex), 1, extension);
-        // }
-        // fread(&index, sizeof(NumericIndex), 1, extension);
-
-        // if (index.index != id)
-        // {
-        //     printf("Movie with ID %d not found!\n", id);
-        //     return -1;
-        // }
-
-        // address = index.address;
+        long index_addr;
+        long movie_addr = search_extension(id, extension_address, &index_addr);
+        if (movie_addr == -1)
+        {
+            printf("Movie with ID %d not found!\n", id);
+            return -1;
+        }
+        address = movie_addr;
     }
+    else
+        address = index.address;
 
     // Read movie at the found address
     Movie movie;
@@ -82,46 +72,36 @@ void add_new_movie(void)
     printf("New index address is: %ld\n", new_index_address);
 
     // Find last index position where new index should be inserted
-    int index_count;
-    NumericIndex *indexes = fetch_indexes("input/arqMovies.bin", "input/index.bin", sizeof(Movie), get_index, &index_count);
-    int pos;
     bool found;
+    int index_count, pos;
+    NumericIndex *indexes = fetch_indexes("input/arqMovies.bin", "input/index.bin", sizeof(Movie), get_index, &index_count);
     binsearch_index(indexes, 0, index_count, movie.id, &pos, &found);
-    
+
     // Find index to "extend"
     NumericIndex index = indexes[pos];
-    FILE *index_file = fopen("input/index.bin", "rwb");
+    FILE *index_file = fopen("input/index.bin", "rb+");
 
-    if (index.next != -1)
+    if (index.next == -1)
     {
-        // Then index already has linked list
-        NumericIndex extension_index;
-        FILE *extension_file = fopen("input/extension.bin", "rb");
-        fseek(extension_file, index.next, SEEK_SET);
-        fread(&extension_index, sizeof(NumericIndex), 1, extension_file);
-
-        long curr_address = 0;
-        while(extension_index.next != -1)
-        {
-            curr_address = extension_index.next;
-            fseek(extension_file, extension_index.next, SEEK_SET);
-            fread(&extension_index, sizeof(NumericIndex), 1, extension_file);
-        }
-        fclose(extension_file);
-        extension_file = fopen("input/extension.bin", "wb");
-
-        extension_index.next = new_index_address;
-        fseek(extension_file, curr_address, SEEK_SET);
-        fwrite(&index, sizeof(NumericIndex), 1, extension_file);
-        fclose(extension_file);
-
+        printf("CAIU AQUI\n");
+        index.next = new_index_address;
+        fseek(index_file, pos * sizeof(NumericIndex), SEEK_SET);
+        fwrite(&index, sizeof(NumericIndex), 1, index_file);
+        fclose(index_file);
         return;
     }
+    
+    long index_addr;
+    search_extension(-1, index.next, &index_addr);
+    FILE *extension_file = fopen("input/extension.bin", "rb+");
+    NumericIndex buffer;
+    fseek(extension_file, index_addr, SEEK_SET);
+    fread(&buffer, sizeof(NumericIndex), 1, extension_file);
+    fseek(extension_file, - sizeof(NumericIndex), SEEK_CUR);
+    buffer.next = new_index_address;
+    fwrite(&buffer, sizeof(NumericIndex), 1, extension_file);
 
-    index.next = new_index_address;
-    fseek(index_file, pos * sizeof(NumericIndex), SEEK_SET);
-    fwrite(&index, sizeof(NumericIndex), 1, index_file);
-    fclose(index_file);
+    fclose(extension_file);
 }
 
 int menu(void)

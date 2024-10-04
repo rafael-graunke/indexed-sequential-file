@@ -132,3 +132,22 @@ long append_to_extension(NumericIndex index)
 {
     return append_to_file("input/extension.bin", &index, sizeof(NumericIndex));
 }
+
+long search_extension(int id, long initial_addr, long *curr_addr)
+{
+    NumericIndex index;
+    FILE *extension = fopen("input/extension.bin", "rb");
+    fseek(extension, initial_addr, SEEK_SET);
+    fread(&index, sizeof(NumericIndex), 1, extension);
+    *curr_addr = ftell(extension) - sizeof(NumericIndex);
+    fclose(extension);
+
+    if (index.next == -1)
+    {
+        if (index.index == id)
+            return index.address;
+        return -1;
+    }
+
+    return search_extension(id, index.next, curr_addr);
+}
