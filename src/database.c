@@ -38,7 +38,10 @@ NumericIndex *fetch_indexes(char *source, char *target, size_t __size, __getinde
 
     // Else read from index file
     else
+    {
+        printf("Reading indexes...\n");
         indexes = (NumericIndex *)read_bin_file(target, sizeof(NumericIndex), index_count);
+    }
 
     return indexes;
 }

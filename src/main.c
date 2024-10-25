@@ -20,7 +20,6 @@ long indexed_binary_search(void)
     int pos;
     NumericIndex index = binsearch_index(indexes, 0, index_count, id, &pos, &found);
     long address;
-    printf("%d\n", pos);
     // If not found at base file
     if (!found)
     {
@@ -73,12 +72,12 @@ void add_new_movie(void)
 
     // Find last index position where new index should be inserted
     bool found;
-    int index_count, pos;
+    int index_count, pos = 0;
     NumericIndex *indexes = fetch_indexes("input/arqMovies.bin", "input/index.bin", sizeof(Movie), get_index, &index_count);
-    binsearch_index(indexes, 0, index_count, movie.id, &pos, &found);
+    binsearch_index(indexes, 0, index_count - 1, movie.id, &pos, &found);
 
     // Find index to "extend"
-    NumericIndex index = indexes[pos];
+    NumericIndex index = indexes[pos - 1];
     FILE *index_file = fopen("input/index.bin", "rb+");
 
     if (index.next == -1)
